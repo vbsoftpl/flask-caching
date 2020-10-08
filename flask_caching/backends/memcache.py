@@ -1,7 +1,18 @@
 import re
+
+# -*- coding: utf-8 -*-
+"""
+    flask_caching.backends.memcache
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    The memcache caching backend.
+
+    :copyright: (c) 2018 by Peter Justin.
+    :copyright: (c) 2010 by Thadeus Burgess.
+    :license: BSD, see LICENSE for more details.
+"""
 from time import time
 
-from flask_caching._compat import to_native
 from flask_caching.backends.base import BaseCache, iteritems_wrapper
 
 try:
@@ -62,10 +73,10 @@ class MemcachedCache(BaseCache):
             # client.
             self._client = servers
 
-        self.key_prefix = to_native(key_prefix)
+        self.key_prefix = key_prefix or None
 
     def _normalize_key(self, key):
-        key = to_native(key, "utf-8")
+        key = str(key)
         if self.key_prefix:
             key = self.key_prefix + key
         return key
@@ -73,7 +84,21 @@ class MemcachedCache(BaseCache):
     def _normalize_timeout(self, timeout):
         timeout = BaseCache._normalize_timeout(self, timeout)
         if timeout > 0:
-            timeout = int(time()) + timeout
+            # NOTE: pylibmc expect the timeout as delta time up to
+            # 2592000 seconds (30 days)
+            if not hasattr(self, 'mc_library'):
+                try:
+                    import pylibmc
+                except ImportError:
+                    self.mc_library = None
+                else:
+                    self.mc_library = 'pylibmc'
+
+            if self.mc_library != 'pylibmc':
+                timeout = int(time()) + timeout
+            elif timeout > 2592000:
+                timeout = 0
+
         return timeout
 
     def get(self, key):
@@ -145,7 +170,11 @@ class MemcachedCache(BaseCache):
     def has(self, key):
         key = self._normalize_key(key)
         if _test_memcached_key(key):
-            return self._client.append(key, "")
+            try:
+                return self._client.append(key, "")
+            except AttributeError:
+                # GAEMemecache has no 'append' function
+                return True if self._client.get(key) is not None else False
         return False
 
     def clear(self):
@@ -166,6 +195,7 @@ class MemcachedCache(BaseCache):
         except ImportError:
             pass
         else:
+            self.mc_library = 'pylibmc'
             return pylibmc.Client(servers)
 
         try:
@@ -173,6 +203,7 @@ class MemcachedCache(BaseCache):
         except ImportError:
             pass
         else:
+            self.mc_library = 'google.appengine.api'
             return memcache.Client()
 
         try:
@@ -180,6 +211,7 @@ class MemcachedCache(BaseCache):
         except ImportError:
             pass
         else:
+            self.mc_library = 'memcache'
             return memcache.Client(servers)
 
         try:
@@ -187,6 +219,7 @@ class MemcachedCache(BaseCache):
         except ImportError:
             pass
         else:
+            self.mc_library = 'libmc'
             return libmc.Client(servers)
 
 
@@ -200,7 +233,7 @@ class SASLMemcachedCache(MemcachedCache):
         password=None,
         **kwargs
     ):
-        super(SASLMemcachedCache, self).__init__(default_timeout)
+        super(SASLMemcachedCache, self).__init__(default_timeout=default_timeout)
 
         if servers is None:
             servers = ["127.0.0.1:11211"]
@@ -273,7 +306,7 @@ class SpreadSASLMemcachedCache(SASLMemcachedCache):
 
         for i in chks:
             values["%s.%s" % (key, i // self.chunksize)] = serialized[
-                i:i + self.chunksize
+                i : i + self.chunksize
             ]
 
         super(SpreadSASLMemcachedCache, self).set_many(values, timeout)

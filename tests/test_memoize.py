@@ -339,6 +339,30 @@ def test_memoize_classfunc(app, cache):
     assert adder1.add(3) != adder2.add(3)
 
 
+def test_memoize_classfunc_repr(app, cache):
+    class Adder(object):
+        def __init__(self, initial):
+            self.initial = initial
+
+        @cache.memoize()
+        def add(self, b):
+            return self.initial + b
+
+        def __repr__(self):
+            return "42"
+
+        def __caching_id__(self):
+            return self.initial
+
+    adder1 = Adder(1)
+    adder2 = Adder(2)
+
+    x = adder1.add(3)
+    assert adder1.add(3) == x
+    assert adder1.add(4) != x
+    assert adder1.add(3) != adder2.add(3)
+
+
 def test_memoize_classfunc_delete(app, cache):
     with app.test_request_context():
         class Adder(object):
@@ -632,7 +656,7 @@ def test_memoize_none(app, cache):
 
         call_counter = Counter()
 
-        @cache.memoize()
+        @cache.memoize(cache_none=True)
         def memoize_none(param):
             call_counter[param] += 1
 
@@ -653,3 +677,86 @@ def test_memoize_none(app, cache):
 
         memoize_none(1)
         assert call_counter[1] == 2
+
+
+def test_memoize_never_accept_none(app, cache):
+    """Asserting that when cache_none is False, we always
+       assume a None value returned from .get() means the key is not found
+    """
+    with app.test_request_context():
+        from collections import Counter
+
+        call_counter = Counter()
+
+        @cache.memoize()
+        def memoize_none(param):
+            call_counter[param] += 1
+
+            return None
+
+        memoize_none(1)
+
+        # The memoized function should have been called
+        assert call_counter[1] == 1
+
+        # Next time we call the function, the value should be coming from the cache…
+        # But the value is None and so we treat it as uncached.
+        assert memoize_none(1) is None
+
+        # …thus, the call counter should increment to 2
+        assert call_counter[1] == 2
+
+        cache.clear()
+
+        memoize_none(1)
+        assert call_counter[1] == 3
+
+
+def test_memoize_with_source_check_enabled(app, cache):
+    with app.test_request_context():
+        @cache.memoize(source_check=True)
+        def big_foo(a, b):
+            return str(time.time())
+
+        first_try = big_foo(5, 2)
+
+        second_try = big_foo(5, 2)
+
+        assert second_try == first_try
+
+        @cache.memoize(source_check=True)
+        def big_foo(a, b):
+            return (str(time.time()))
+
+        third_try = big_foo(5, 2)
+
+        assert third_try[0] != first_try
+
+        @cache.memoize(source_check=True)
+        def big_foo(a, b):
+            return str(time.time())
+
+        forth_try = big_foo(5, 2)
+
+        assert forth_try == first_try
+
+
+def test_memoize_with_source_check_disabled(app, cache):
+    with app.test_request_context():
+        @cache.memoize(source_check=False)
+        def big_foo(a, b):
+            return str(time.time())
+
+        first_try = big_foo(5, 2)
+
+        second_try = big_foo(5, 2)
+
+        assert second_try == first_try
+
+        @cache.memoize(source_check=False)
+        def big_foo(a, b):
+            return (time.time())
+
+        third_try = big_foo(5, 2)
+
+        assert third_try == first_try

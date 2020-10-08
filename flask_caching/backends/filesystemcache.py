@@ -1,10 +1,19 @@
+# -*- coding: utf-8 -*-
+"""
+    flask_caching.backends.filesystem
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    The filesystem caching backend.
+
+    :copyright: (c) 2018 by Peter Justin.
+    :copyright: (c) 2010 by Thadeus Burgess.
+    :license: BSD, see LICENSE for more details.
+"""
 import errno
 import hashlib
 import os
 import tempfile
 from time import time
-
-from werkzeug.posixemulation import rename
 
 from flask_caching.backends.base import BaseCache
 
@@ -32,7 +41,7 @@ class FileSystemCache(BaseCache):
     :param hash_method: Default hashlib.md5. The hash method used to
                         generate the filename for cached results.
     :param ignore_errors: If set to ``True`` the :meth:`~BaseCache.delete_many`
-                          method will ignore any errors that occured during the
+                          method will ignore any errors that occurred during the
                           deletion process. However, if it is set to ``False``
                           it will stop on the first error. Defaults to
                           ``False``.
@@ -50,7 +59,7 @@ class FileSystemCache(BaseCache):
         default_timeout=300,
         mode=0o600,
         hash_method=hashlib.md5,
-        ignore_errors=False
+        ignore_errors=False,
     ):
         super(FileSystemCache, self).__init__(default_timeout)
         self._path = cache_dir
@@ -65,7 +74,10 @@ class FileSystemCache(BaseCache):
             if ex.errno != errno.EEXIST:
                 raise
 
-        self._update_count(value=len(self._list_dir()))
+        # If there are many files and a zero threshold,
+        # the list_dir can slow initialisation massively
+        if self._threshold != 0:
+            self._update_count(value=len(self._list_dir()))
 
     @property
     def _file_count(self):
@@ -174,7 +186,7 @@ class FileSystemCache(BaseCache):
             with os.fdopen(fd, "wb") as f:
                 pickle.dump(timeout, f, 1)
                 pickle.dump(value, f, pickle.HIGHEST_PROTOCOL)
-            rename(tmp, filename)
+            os.replace(tmp, filename)
             os.chmod(filename, self._mode)
         except (IOError, OSError):
             return False

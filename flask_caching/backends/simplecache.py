@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+    flask_caching.backends.simple
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    The simple cache backend.
+
+    :copyright: (c) 2018 by Peter Justin.
+    :copyright: (c) 2010 by Thadeus Burgess.
+    :license: BSD, see LICENSE for more details.
+"""
 from time import time
 
 from flask_caching.backends.base import BaseCache
@@ -20,7 +31,7 @@ class SimpleCache(BaseCache):
                             specified on :meth:`~BaseCache.set`. A timeout of
                             0 indicates that the cache never expires.
     :param ignore_errors: If set to ``True`` the :meth:`~BaseCache.delete_many`
-                          method will ignore any errors that occured during the
+                          method will ignore any errors that occurred during the
                           deletion process. However, if it is set to ``False``
                           it will stop on the first error. Defaults to
                           ``False``.

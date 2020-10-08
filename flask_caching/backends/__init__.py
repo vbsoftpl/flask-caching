@@ -9,14 +9,17 @@
     :copyright: (c) 2010 by Thadeus Burgess.
     :license: BSD, see LICENSE for more details.
 """
-from flask_caching.backends.filesystem import FileSystemCache
-from flask_caching.backends.memcache import (MemcachedCache,
-                                             SASLMemcachedCache,
-                                             SpreadSASLMemcachedCache)
-from flask_caching.backends.null import NullCache
+from flask_caching.backends.filesystemcache import FileSystemCache
+from flask_caching.backends.memcache import (
+    MemcachedCache,
+    SASLMemcachedCache,
+    SpreadSASLMemcachedCache,
+)
+from flask_caching.backends.nullcache import NullCache
+
 # TODO: Rename to "redis" when python2 support is removed
-from flask_caching.backends.rediscache import RedisCache, RedisSentinelCache
-from flask_caching.backends.simple import SimpleCache
+from flask_caching.backends.rediscache import RedisCache, RedisSentinelCache, RedisClusterCache
+from flask_caching.backends.simplecache import SimpleCache
 
 try:
     from flask_caching.backends.uwsgicache import UWSGICache
@@ -32,6 +35,7 @@ __all__ = (
     "filesystem",
     "redis",
     "redissentinel",
+    "rediscluster",
     "uwsgi",
     "memcached",
     "gaememcached",
@@ -111,6 +115,15 @@ def redissentinel(app, config, args, kwargs):
     )
 
     return RedisSentinelCache(*args, **kwargs)
+
+
+def rediscluster(app, config, args, kwargs):
+    kwargs.update(
+        dict(cluster=config.get("CACHE_REDIS_CLUSTER", ""),
+             password=config.get("CACHE_REDIS_PASSWORD", ""),
+             default_timeout=config.get("CACHE_DEFAULT_TIMEOUT", 300),
+             key_prefix=config.get("CACHE_KEY_PREFIX", "")))
+    return RedisClusterCache(*args, **kwargs)
 
 
 def uwsgi(app, config, args, kwargs):

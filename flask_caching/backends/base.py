@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+"""
+    flask_caching.backends.base
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    This module contains the BaseCache that other caching
+    backends have to implement.
+
+    :copyright: (c) 2018 by Peter Justin.
+    :copyright: (c) 2010 by Thadeus Burgess.
+    :license: BSD, see LICENSE for more details.
+"""
+
+
 def iteritems_wrapper(mappingorseq):
     """Wrapper for efficient iteration over mappings represented by dicts
     or sequences::
@@ -82,7 +96,7 @@ class BaseCache(object):
         :param value: the value for the key
         :param timeout: the cache timeout for the key in seconds (if not
                         specified, it uses the default timeout). A timeout of
-                        0 idicates that the cache never expires.
+                        0 indicates that the cache never expires.
         :returns: ``True`` if key has been updated, ``False`` for backend
                   errors. Pickling errors, however, will raise a subclass of
                   ``pickle.PickleError``.

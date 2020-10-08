@@ -2,6 +2,7 @@ Flask-Caching
 =============
 
 .. module:: flask_caching
+   :noindex:
 
 Flask-Caching is an extension to `Flask`_ that adds caching support for
 various backends to any Flask application. Besides providing support for all
@@ -163,8 +164,8 @@ Deleting memoize cache
 
 .. versionadded:: 0.2
 
-You might need to delete the cache on a per-function bases. Using the above
-example, lets say you change the users permissions and assign them to a role,
+You might need to delete the cache on a per-function basis. Using the above
+example, lets say you change the user's permissions and assign them to a role,
 but now you need to re-calculate if they have certain memberships or not.
 You can do this with the :meth:`~Cache.delete_memoized` function::
 
@@ -184,6 +185,21 @@ You can do this with the :meth:`~Cache.delete_memoized` function::
 
      cache.delete_memoized(user_has_membership, 'demo', 'user')
 
+.. warning::
+
+  If a classmethod is memoized, you must provide the ``class`` as the first
+  ``*args`` argument.
+
+  .. code-block:: python
+
+    class Foobar(object):
+        @classmethod
+        @cache.memoize(5)
+        def big_foo(cls, a, b):
+            return a + b + random.randrange(0, 100000)
+
+    cache.delete_memoized(Foobar.big_foo, Foobar, 5, 2)
+
 
 Caching Jinja2 Snippets
 -----------------------
@@ -200,13 +216,13 @@ can be used to avoid the same block evaluating in different templates.
 
 Set the timeout to ``None`` for no timeout, but with custom keys::
 
-    {% cache None "key" %}
+    {% cache None, "key" %}
     ...
     {% endcache %}
 
 Set timeout to ``del`` to delete cached value::
 
-    {% cache 'del' key1 %}
+    {% cache 'del', key1 %}
     ...
     {% endcache %}
 
@@ -313,6 +329,7 @@ The following configuration values exist for Flask-Caching:
                                 * **filesystem**: FileSystemCache
                                 * **redis**: RedisCache (redis required)
                                 * **redissentinel**: RedisSentinelCache (redis required)
+                                * **rediscluster**: RedisClusterCache (redis required)
                                 * **uwsgi**: UWSGICache (uwsgi required)
                                 * **memcached**: MemcachedCache (pylibmc or memcache required)
                                 * **gaememcached**: same as memcached (for backwards compatibility)
@@ -328,7 +345,7 @@ The following configuration values exist for Flask-Caching:
 ``CACHE_DEFAULT_TIMEOUT``       The default timeout that is used if no
                                 timeout is specified. Unit of time is
                                 seconds.
-``CACHE_IGNORE_ERRORS``         If set to any errors that occured during the
+``CACHE_IGNORE_ERRORS``         If set to any errors that occurred during the
                                 deletion process will be ignored. However, if
                                 it is set to ``False`` it will stop on the
                                 first error. This option is only relevant for
@@ -342,6 +359,14 @@ The following configuration values exist for Flask-Caching:
                                 This makes it possible to use the same
                                 memcached server for different apps.
                                 Used only for RedisCache and MemcachedCache
+``CACHE_SOURCE_CHECK``          The default condition applied to function
+                                decorators which controls if the source code of
+                                the function should be included when forming the
+                                hash which is used as the cache key. This
+                                ensures that if the source code changes, the
+                                cached value will not be returned when the new
+                                function is called even if the arguments are the
+                                same. Defaults to ``False``.
 ``CACHE_UWSGI_NAME``            The name of the uwsgi caching instance to
                                 connect to, for example: mycache@localhost:3031,
                                 defaults to an empty string, which means uWSGI
@@ -365,6 +390,8 @@ The following configuration values exist for Flask-Caching:
                                 RedisSentinelCache.
 ``CACHE_REDIS_SENTINEL_MASTER`` The name of the master server in a sentinel configuration. Used
                                 only for RedisSentinelCache.
+``CACHE_REDIS_CLUSTER``         A string of comma-separated Redis cluster node addresses. 
+                                e.g. host1:port1,host2:port2,host3:port3 . Used only for RedisClusterCache.
 ``CACHE_DIR``                   Directory to store cache. Used only for
                                 FileSystemCache.
 ``CACHE_REDIS_URL``             URL to connect to Redis server.
@@ -373,10 +400,6 @@ The following configuration values exist for Flask-Caching:
                                 ``unix://``. See more info about URL support [here](http://redis-py.readthedocs.io/en/latest/index.html#redis.ConnectionPool.from_url).
                                 Used only for RedisCache.
 =============================== ==================================================================
-
-
-In addition the standard Flask ``TESTING`` configuration option is used. If this
-is True then **Flask-Caching** will use NullCache only.
 
 
 Built-in Cache Backends
@@ -449,6 +472,17 @@ Set ``CACHE_TYPE`` to ``redissentinel`` to use this type.
 - CACHE_REDIS_SENTINEL_MASTER
 - CACHE_REDIS_PASSWORD
 - CACHE_REDIS_DB
+
+Entries in CACHE_OPTIONS are passed to the redis client as ``**kwargs``
+
+RedisClusterCache
+``````````````````
+
+Set ``CACHE_TYPE`` to ``rediscluster`` to use this type.
+
+- CACHE_KEY_PREFIX
+- CACHE_REDIS_CLUSTER
+- CACHE_REDIS_PASSWORD
 
 Entries in CACHE_OPTIONS are passed to the redis client as ``**kwargs``
 
